@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,9 +28,12 @@
     border-bottom:1px solid rgba(194,255,61,.12);
   }
   .brand{font-size:22px; font-weight:800; letter-spacing:-.03em; cursor:pointer;
-    display:flex; align-items:center; gap:8px; white-space:nowrap;}
+    display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;}
   .brand .mark{color:var(--lime); font-size:16px;}
   .brand .lime{color:var(--lime);}
+  .brand .credit{font-size:11px; font-weight:600; color:var(--muted); letter-spacing:0;
+    white-space:nowrap;}
+  @media (max-width:480px){ .brand .credit{flex-basis:100%; margin-top:-2px;} }
   #nameInput{
     background:var(--field); border:1px solid rgba(194,255,61,.25); color:var(--text);
     padding:9px 14px; border-radius:999px; font-size:14px; width:150px; max-width:40vw;
@@ -119,8 +122,12 @@
 </head>
 <body>
   <header>
-    <div class="brand" id="brand"><span class="mark">◆</span><span>Sport<span class="lime">link</span></span></div>
-    <input id="nameInput" placeholder="Your name">
+    <div class="brand" id="brand">
+      <span class="mark">◆</span>
+      <span>Sport<span class="lime">link</span></span>
+      <span class="credit">Hecho por Kyan, Keanu y Jonah</span>
+    </div>
+    <input id="nameInput" placeholder="Tu nombre">
   </header>
 
   <main id="app"></main>
@@ -131,21 +138,21 @@
 
 /* ---- Sports ---- */
 const SPORTS = [
-  {id:"basketball",name:"Basketball",emoji:"🏀"},
-  {id:"soccer",name:"Soccer",emoji:"⚽"},
-  {id:"badminton",name:"Badminton",emoji:"🏸"},
-  {id:"tennis",name:"Tennis",emoji:"🎾"},
-  {id:"volleyball",name:"Volleyball",emoji:"🏐"},
-  {id:"tabletennis",name:"Table tennis",emoji:"🏓"},
-  {id:"running",name:"Running",emoji:"🏃"},
-  {id:"cycling",name:"Cycling",emoji:"🚴"},
-  {id:"swimming",name:"Swimming",emoji:"🏊"},
-  {id:"cricket",name:"Cricket",emoji:"🏏"},
-  {id:"baseball",name:"Baseball",emoji:"⚾"},
+  {id:"basketball",name:"Baloncesto",emoji:"🏀"},
+  {id:"soccer",name:"Fútbol",emoji:"⚽"},
+  {id:"badminton",name:"Bádminton",emoji:"🏸"},
+  {id:"tennis",name:"Tenis",emoji:"🎾"},
+  {id:"volleyball",name:"Voleibol",emoji:"🏐"},
+  {id:"tabletennis",name:"Tenis de mesa",emoji:"🏓"},
+  {id:"running",name:"Correr",emoji:"🏃"},
+  {id:"cycling",name:"Ciclismo",emoji:"🚴"},
+  {id:"swimming",name:"Natación",emoji:"🏊"},
+  {id:"cricket",name:"Críquet",emoji:"🏏"},
+  {id:"baseball",name:"Béisbol",emoji:"⚾"},
   {id:"golf",name:"Golf",emoji:"⛳"},
-  {id:"boxing",name:"Boxing",emoji:"🥊"},
-  {id:"skating",name:"Skating",emoji:"⛸️"},
-  {id:"climbing",name:"Climbing",emoji:"🧗"},
+  {id:"boxing",name:"Boxeo",emoji:"🥊"},
+  {id:"skating",name:"Patinaje",emoji:"⛸️"},
+  {id:"climbing",name:"Escalada",emoji:"🧗"},
   {id:"hockey",name:"Hockey",emoji:"🏒"},
 ];
 
@@ -252,16 +259,16 @@ function flash(msg){
 function timeUntil(dateStr){
   if(!dateStr) return "";
   const diff=new Date(dateStr)-new Date();
-  if(diff<0) return "Already started";
+  if(diff<0) return "Ya empezó";
   const h=Math.floor(diff/3600000), days=Math.floor(h/24);
-  if(days>=1) return "In "+days+" day"+(days>1?"s":"");
-  if(h>=1) return "In "+h+" hr"+(h>1?"s":"");
+  if(days>=1) return "En "+days+" día"+(days>1?"s":"");
+  if(h>=1) return "En "+h+" h";
   const m=Math.max(1,Math.floor(diff/60000));
-  return "In "+m+" min";
+  return "En "+m+" min";
 }
 function prettyDate(dateStr){
   if(!dateStr) return "";
-  return new Date(dateStr).toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+  return new Date(dateStr).toLocaleString("es-ES",{weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
 }
 
 /* ---- Data ops ---- */
@@ -282,25 +289,25 @@ async function postMatch(data){
     place:data.place, when:data.when, note:data.note, maxPlayers:data.maxPlayers,
     players:[{id:deviceId,name:data.host}], created:Date.now() };
   await store.set(id, JSON.stringify(match));
-  flash("Match posted — others can see it now");
+  flash("Partido publicado — ya pueden verlo");
   state.view="sport"; await loadMatchesFor(state.sport.id);
 }
 async function joinMatch(match){
-  if(!state.name.trim()){ flash("Add your name in the top bar first"); return; }
+  if(!state.name.trim()){ flash("Primero escribe tu nombre arriba"); return; }
   const already=match.players.some(p=>p.id===deviceId);
   let updated;
   if(already){ updated={...match, players:match.players.filter(p=>p.id!==deviceId)}; }
   else{
-    if(match.maxPlayers && match.players.length>=match.maxPlayers){ flash("This match is full"); return; }
+    if(match.maxPlayers && match.players.length>=match.maxPlayers){ flash("Este partido está completo"); return; }
     updated={...match, players:[...match.players,{id:deviceId,name:state.name.trim()}]};
   }
   await store.set(match.id, JSON.stringify(updated));
-  flash(already?"You left the match":"You're in! See you there");
+  flash(already?"Saliste del partido":"¡Estás dentro! Nos vemos");
   await loadMatchesFor(state.sport.id);
 }
 async function deleteMatch(match){
   await store.del(match.id);
-  flash("Match removed");
+  flash("Partido eliminado");
   await loadMatchesFor(state.sport.id);
 }
 
@@ -314,8 +321,8 @@ function render(){
 function renderHome(){
   app.innerHTML = `
     <section class="hero">
-      <h1>Pick a sport.<br>Find a match to join.</h1>
-      <p>Choose a sport, see the matches people have posted near you — place and time included — and join with one tap. Or post your own and watch others join.</p>
+      <h1>Elige un deporte.<br>Únete a un partido.</h1>
+      <p>Elige un deporte, mira los partidos que han publicado cerca de ti — con lugar y hora — y únete con un toque. O publica el tuyo y mira cómo se apuntan los demás.</p>
     </section>
     <div class="grid">
       ${SPORTS.map((sp,i)=>`
@@ -332,36 +339,36 @@ function renderHome(){
 
 function renderSport(){
   const sp=state.sport;
-  const countText = state.loading ? "Loading matches…"
-    : state.matches.length===0 ? "No matches posted yet"
-    : state.matches.length+" match"+(state.matches.length>1?"es":"")+" across all sports";
+  const countText = state.loading ? "Cargando partidos…"
+    : state.matches.length===0 ? "Aún no hay partidos"
+    : state.matches.length+" partido"+(state.matches.length>1?"s":"")+" en todos los deportes";
 
   let cards="";
   if(!state.loading && state.matches.length===0){
     cards = `<div class="empty"><div class="emoji">${sp.emoji}</div>
-      <p>No matches posted yet. Post one — set the place and time, and others can join right away.</p></div>`;
+      <p>Aún no hay partidos. Publica uno — indica el lugar y la hora, y otros podrán unirse enseguida.</p></div>`;
   } else {
     cards = `<div class="matchList">${state.matches.map(m=>matchCard(m)).join("")}</div>`;
   }
 
   app.innerHTML = `
-    <button class="back" id="back">← All sports</button>
+    <button class="back" id="back">← Todos los deportes</button>
     <div class="sportHead">
       <span class="emoji">${sp.emoji}</span>
       <div style="flex:1">
         <h2>${sp.name}</h2>
         <p class="count">${countText}</p>
       </div>
-      <button class="refresh" id="refresh" title="Refresh">↻</button>
+      <button class="refresh" id="refresh" title="Actualizar">↻</button>
     </div>
-    <button class="postBtn" id="post">+ Post a match</button>
-    ${state.loading?'<div class="loadingRow">Loading…</div>':""}
+    <button class="postBtn" id="post">+ Publicar un partido</button>
+    ${state.loading?'<div class="loadingRow">Cargando…</div>':""}
     ${cards}`;
 
   document.getElementById("back").onclick=()=>{state.view="home"; render();};
   document.getElementById("refresh").onclick=()=>loadMatchesFor(sp.id);
   document.getElementById("post").onclick=()=>{
-    if(!state.name.trim()){ flash("Add your name in the top bar first"); return; }
+    if(!state.name.trim()){ flash("Primero escribe tu nombre arriba"); return; }
     state.view="create"; render();
   };
   app.querySelectorAll("[data-join]").forEach(b=>b.onclick=()=>{
@@ -380,23 +387,23 @@ function matchCard(m){
   const avatars=m.players.slice(0,5).map((p,i)=>
     `<span class="miniAvatar" style="margin-left:${i===0?0:-8}px;z-index:${10-i}" title="${esc(p.name)}">${esc((p.name||"?").charAt(0).toUpperCase())}</span>`).join("");
   const joinClass = joined?"joinBtn joined":(full?"joinBtn full":"joinBtn");
-  const joinLabel = joined?"✓ You're going — tap to leave":(full?"Match full":"Join this match");
+  const joinLabel = joined?"✓ Vas a ir — toca para salir":(full?"Partido completo":"Unirme a este partido");
   const sp = SPORTS.find(s=>s.id===m.sport);
   const sportLabel = sp ? `<span class="sportChip">${sp.emoji} ${esc(sp.name)}</span>` : "";
   return `
     <div class="matchCard ${past?"past":""}">
       <div class="matchTop">
-        <span class="whenChip">${past?"Past":timeUntil(m.when)}</span>
+        <span class="whenChip">${past?"Pasado":timeUntil(m.when)}</span>
         ${sportLabel}
-        ${isHost?`<button class="deleteLink" data-del="${m.id}">Delete</button>`:""}
+        ${isHost?`<button class="deleteLink" data-del="${m.id}">Eliminar</button>`:""}
       </div>
       <div class="matchPlace">📍 ${esc(m.place)}</div>
       <div class="matchWhen">🗓 ${prettyDate(m.when)}</div>
       ${m.note?`<div class="matchNote">${esc(m.note)}</div>`:""}
-      <span class="hostBadge">Hosted by ${esc(m.host)}</span>
+      <span class="hostBadge">Organiza ${esc(m.host)}</span>
       <div class="playersRow">
         <div class="avatarStack">${avatars}</div>
-        <span class="playerCount">${m.players.length}${m.maxPlayers?" / "+m.maxPlayers:""} going</span>
+        <span class="playerCount">${m.players.length}${m.maxPlayers?" / "+m.maxPlayers:""} apuntados</span>
       </div>
       <button class="${joinClass}" data-join="${m.id}" ${(!joined&&full)?"disabled":""}>${joinLabel}</button>
       ${m.players.length?`<div class="goingNames">${m.players.map(p=>esc(p.name)).join(", ")}</div>`:""}
@@ -406,24 +413,24 @@ function matchCard(m){
 function renderCreate(){
   const sp=state.sport;
   app.innerHTML = `
-    <button class="back" id="back">← Back</button>
+    <button class="back" id="back">← Atrás</button>
     <div class="sportHead">
       <span class="emoji">${sp.emoji}</span>
       <div>
-        <h2>Post a ${sp.name} match</h2>
-        <p class="count">Set where and when — others join in one tap.</p>
+        <h2>Publicar un partido de ${sp.name}</h2>
+        <p class="count">Indica el lugar y la hora — otros se unen con un toque.</p>
       </div>
     </div>
-    <label class="fld">Where? *</label>
-    <input class="fld" id="place" placeholder="e.g. School court, Senayan Park">
-    <label class="fld">When? *</label>
+    <label class="fld">¿Dónde? *</label>
+    <input class="fld" id="place" placeholder="ej. Cancha del colegio, Parque Senayan">
+    <label class="fld">¿Cuándo? *</label>
     <input class="fld" id="when" type="datetime-local">
-    <label class="fld">Players needed (optional)</label>
-    <input class="fld" id="max" type="number" min="2" placeholder="e.g. 10">
-    <label class="fld">Note (optional)</label>
-    <input class="fld" id="note" placeholder="e.g. Bring your own ball, casual game">
-    <div class="hostNote">Posting as <b>${esc(state.name||"Someone")}</b>. You'll be counted as going automatically.</div>
-    <button class="postBtn" id="submit" style="margin-top:6px">Post match</button>`;
+    <label class="fld">Jugadores necesarios (opcional)</label>
+    <input class="fld" id="max" type="number" min="2" placeholder="ej. 10">
+    <label class="fld">Nota (opcional)</label>
+    <input class="fld" id="note" placeholder="ej. Trae tu balón, partido informal">
+    <div class="hostNote">Publicas como <b>${esc(state.name||"Alguien")}</b>. Quedarás apuntado automáticamente.</div>
+    <button class="postBtn" id="submit" style="margin-top:6px">Publicar partido</button>`;
 
   document.getElementById("back").onclick=()=>{state.view="sport"; render();};
   document.getElementById("submit").onclick=()=>{
@@ -431,8 +438,8 @@ function renderCreate(){
     const when=document.getElementById("when").value;
     const max=document.getElementById("max").value;
     const note=document.getElementById("note").value.trim();
-    if(!place||!when){ flash("Add a place and a time"); return; }
-    postMatch({ host:(state.name.trim()||"Someone"), place, when, note, maxPlayers:max?parseInt(max,10):null });
+    if(!place||!when){ flash("Añade un lugar y una hora"); return; }
+    postMatch({ host:(state.name.trim()||"Alguien"), place, when, note, maxPlayers:max?parseInt(max,10):null });
   };
 }
 
