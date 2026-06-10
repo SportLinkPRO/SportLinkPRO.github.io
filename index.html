@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sportlink</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+  :root{
+    --ink:#0d1b14; --lime:#c2ff3d; --field:#10241a;
+    --text:#eafbe6; --muted:#9fc4a8; --soft:#bcd6c2;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; min-height:100vh;
+    background:radial-gradient(120% 80% at 50% -10%, #16331f 0%, #0a160f 55%, #060c08 100%);
+    color:var(--text); font-family:'Inter',system-ui,-apple-system,sans-serif;
+    padding-bottom:60px;
+  }
+  @keyframes slFade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  @keyframes slPop{from{opacity:0;transform:scale(.94);}to{opacity:1;transform:none;}}
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; position:sticky; top:0; gap:12px; z-index:20;
+    background:rgba(8,18,12,.82); backdrop-filter:blur(10px);
+    border-bottom:1px solid rgba(194,255,61,.12);
+  }
+  .brand{font-size:22px; font-weight:800; letter-spacing:-.03em; cursor:pointer;
+    display:flex; align-items:center; gap:8px; white-space:nowrap;}
+  .brand .mark{color:var(--lime); font-size:16px;}
+  .brand .lime{color:var(--lime);}
+  #nameInput{
+    background:var(--field); border:1px solid rgba(194,255,61,.25); color:var(--text);
+    padding:9px 14px; border-radius:999px; font-size:14px; width:150px; max-width:40vw;
+    font-family:inherit;
+  }
+  main{max-width:760px; margin:0 auto; padding:10px 20px 40px;}
+
+  .hero{padding:42px 0 26px; text-align:center;}
+  .hero h1{font-size:clamp(32px,6vw,56px); line-height:1.03; font-weight:800; letter-spacing:-.04em;
+    margin:0; background:linear-gradient(180deg,#f4ffe9,#a9d98e);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;}
+  .hero p{color:var(--muted); max-width:520px; margin:18px auto 0; font-size:16px; line-height:1.5;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:13px;}
+  .card{display:flex; flex-direction:column; align-items:flex-start; gap:8px;
+    padding:20px 18px; border-radius:18px; cursor:pointer; color:var(--text); text-align:left;
+    background:linear-gradient(160deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
+    border:1px solid rgba(194,255,61,.14); animation:slFade .4s both;
+    transition:transform .15s,border-color .15s,background .15s;}
+  .card:hover{transform:translateY(-3px); border-color:rgba(194,255,61,.5);
+    background:rgba(194,255,61,.06);}
+  .card .emoji{font-size:34px;}
+  .card .name{font-size:16px; font-weight:700;}
+
+  button{font-family:inherit;}
+  button:active{transform:scale(.97);}
+  .back{background:none; border:none; color:var(--lime); cursor:pointer; font-size:14px;
+    padding:8px 0; margin-top:6px;}
+
+  .sportHead{display:flex; align-items:center; gap:16px; margin:6px 0 18px;}
+  .sportHead .emoji{font-size:46px;}
+  .sportHead h2{margin:0; font-size:28px; font-weight:800; letter-spacing:-.03em;}
+  .sportHead .count{margin:4px 0 0; color:var(--muted); font-size:14px;}
+  .refresh{background:var(--field); border:1px solid rgba(194,255,61,.2); color:var(--text);
+    width:40px; height:40px; border-radius:12px; cursor:pointer; font-size:18px; flex-shrink:0;}
+
+  .postBtn{background:var(--lime); color:var(--ink); border:none; padding:14px 20px;
+    border-radius:14px; font-weight:800; cursor:pointer; font-size:15px; margin-bottom:20px; width:100%;}
+
+  .loadingRow{color:var(--muted); padding:20px; text-align:center;}
+  .empty{text-align:center; padding:40px 20px; border-radius:18px;
+    background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.05);}
+  .empty .emoji{font-size:54px; opacity:.5;}
+  .empty p{color:var(--muted); max-width:360px; margin:12px auto 0; line-height:1.5;}
+
+  .matchList{display:flex; flex-direction:column; gap:14px;}
+  .matchCard{padding:18px; border-radius:18px; animation:slFade .3s both;
+    background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.015));
+    border:1px solid rgba(194,255,61,.14);}
+  .matchCard.past{opacity:.55;}
+  .matchTop{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
+  .whenChip{background:rgba(194,255,61,.16); color:var(--lime); padding:4px 12px;
+    border-radius:999px; font-size:12px; font-weight:700;}
+  .sportChip{background:rgba(255,255,255,.07); color:var(--soft); padding:4px 12px;
+    border-radius:999px; font-size:12px; font-weight:700;}
+  .deleteLink{background:none; border:none; color:#e88; font-size:12px; cursor:pointer; text-decoration:underline; margin-left:auto;}
+  .matchPlace{font-size:19px; font-weight:800; letter-spacing:-.02em;}
+  .matchWhen{color:var(--soft); font-size:14px; margin-top:5px;}
+  .matchNote{color:var(--muted); font-size:14px; margin-top:8px; font-style:italic;}
+  .hostBadge{font-size:12px; color:#7fa389; display:block; margin-top:10px;}
+  .playersRow{display:flex; align-items:center; gap:12px; margin:14px 0;}
+  .avatarStack{display:flex;}
+  .miniAvatar{width:30px; height:30px; border-radius:9px; background:var(--lime); color:var(--ink);
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px;
+    border:2px solid #0d1b14;}
+  .playerCount{font-size:13px; color:var(--soft); font-weight:600;}
+  .joinBtn{width:100%; background:var(--lime); color:var(--ink); border:none; padding:13px;
+    border-radius:12px; font-weight:800; cursor:pointer; font-size:15px;}
+  .joinBtn.joined{background:transparent; color:var(--lime); border:1px solid rgba(194,255,61,.5);}
+  .joinBtn.full{background:var(--field); color:#7fa389; cursor:not-allowed;}
+  .goingNames{font-size:12px; color:#7fa389; margin-top:10px; line-height:1.4;}
+
+  label.fld{display:block; font-size:13px; font-weight:600; color:var(--soft); margin:16px 0 7px;}
+  input.fld{width:100%; background:var(--field); border:1px solid rgba(194,255,61,.18); color:var(--text);
+    padding:13px 14px; border-radius:12px; font-size:15px; font-family:inherit;}
+  input.fld:focus, #nameInput:focus{outline:none; border-color:var(--lime);}
+  .hostNote{background:rgba(194,255,61,.08); border:1px solid rgba(194,255,61,.2); color:var(--soft);
+    padding:12px; border-radius:12px; font-size:13px; margin:18px 0 4px;}
+
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:#0e2016; border:1px solid rgba(194,255,61,.3); color:var(--text);
+    padding:12px 20px; border-radius:12px; font-size:14px; z-index:60; animation:slPop .2s both;
+    max-width:90vw; text-align:center;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand" id="brand"><span class="mark">◆</span><span>Sport<span class="lime">link</span></span></div>
+    <input id="nameInput" placeholder="Your name">
+  </header>
+
+  <main id="app"></main>
+  <div id="toast" class="toast hidden"></div>
+
+<script>
+"use strict";
+
+/* ---- Sports ---- */
+const SPORTS = [
+  {id:"basketball",name:"Basketball",emoji:"🏀"},
+  {id:"soccer",name:"Soccer",emoji:"⚽"},
+  {id:"badminton",name:"Badminton",emoji:"🏸"},
+  {id:"tennis",name:"Tennis",emoji:"🎾"},
+  {id:"volleyball",name:"Volleyball",emoji:"🏐"},
+  {id:"tabletennis",name:"Table tennis",emoji:"🏓"},
+  {id:"running",name:"Running",emoji:"🏃"},
+  {id:"cycling",name:"Cycling",emoji:"🚴"},
+  {id:"swimming",name:"Swimming",emoji:"🏊"},
+  {id:"cricket",name:"Cricket",emoji:"🏏"},
+  {id:"baseball",name:"Baseball",emoji:"⚾"},
+  {id:"golf",name:"Golf",emoji:"⛳"},
+  {id:"boxing",name:"Boxing",emoji:"🥊"},
+  {id:"skating",name:"Skating",emoji:"⛸️"},
+  {id:"climbing",name:"Climbing",emoji:"🧗"},
+  {id:"hockey",name:"Hockey",emoji:"🏒"},
+];
+
+/* ---- Storage: Firebase Realtime Database (shared), localStorage fallback ---- */
+const firebaseConfig = {
+  apiKey: "AIzaSyBOf04F9K5Ys4cfByMKr5oLGQvonLh8vP0",
+  authDomain: "the-glade-be01e.firebaseapp.com",
+  databaseURL: "https://the-glade-be01e-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "the-glade-be01e",
+  storageBucket: "the-glade-be01e.firebasestorage.app",
+  messagingSenderId: "997920995512",
+  appId: "1:997920995512:web:3065e4ff59314626209c4d",
+  measurementId: "G-VMNRR1TSPC"
+};
+
+let db = null;
+try {
+  if (window.firebase && firebaseConfig.databaseURL) {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+  }
+} catch (e) { console.warn("Firebase init failed, using local fallback", e); }
+
+// Matches live under /matches/<key> in Firebase. Keys can't contain "." so we
+// strip the "match:" prefix's colon by storing the part after it.
+function matchKey(fullId){ return fullId.replace(/[.#$/\[\]]/g, "_"); }
+
+const store = {
+  async list(prefix){
+    if(db){
+      try{
+        const snap = await db.ref("matches").once("value");
+        const val = snap.val() || {};
+        return Object.keys(val).map(k => "match:" + k);
+      }catch(e){ return []; }
+    }
+    return Object.keys(localStorage).filter(k=>k.startsWith(prefix));
+  },
+  async get(key){
+    if(db){
+      try{
+        const k = matchKey(key.replace(/^match:/,""));
+        const snap = await db.ref("matches/" + k).once("value");
+        const v = snap.val();
+        return v ? JSON.stringify(v) : null;
+      }catch(e){ return null; }
+    }
+    return localStorage.getItem(key);
+  },
+  async set(key,val){
+    if(db){
+      try{
+        const k = matchKey(key.replace(/^match:/,""));
+        await db.ref("matches/" + k).set(JSON.parse(val));
+        return true;
+      }catch(e){ return false; }
+    }
+    localStorage.setItem(key,val); return true;
+  },
+  async del(key){
+    if(db){
+      try{
+        const k = matchKey(key.replace(/^match:/,""));
+        await db.ref("matches/" + k).remove();
+        return true;
+      }catch(e){ return false; }
+    }
+    localStorage.removeItem(key); return true;
+  },
+  // personal (name) — always kept per device, never shared
+  async getLocal(key){ return localStorage.getItem(key); },
+  async setLocal(key,val){ localStorage.setItem(key,val); }
+};
+
+// Live updates: re-load whenever the shared matches change
+function watchMatches(){
+  if(!db) return;
+  db.ref("matches").on("value", ()=>{
+    if(state.view === "sport" && state.sport){ loadMatchesFor(state.sport.id); }
+  });
+}
+
+/* ---- Identity ---- */
+function getDeviceId(){
+  let id = localStorage.getItem("sl_device");
+  if(!id){ id="u_"+Math.random().toString(36).slice(2,10); localStorage.setItem("sl_device",id); }
+  return id;
+}
+const deviceId = getDeviceId();
+
+/* ---- App state ---- */
+const state = { view:"home", sport:null, name:"", matches:[], loading:false };
+
+/* ---- Helpers ---- */
+const app = document.getElementById("app");
+const esc = (s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+let toastTimer;
+function flash(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.classList.remove("hidden");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add("hidden"),2400);
+}
+function timeUntil(dateStr){
+  if(!dateStr) return "";
+  const diff=new Date(dateStr)-new Date();
+  if(diff<0) return "Already started";
+  const h=Math.floor(diff/3600000), days=Math.floor(h/24);
+  if(days>=1) return "In "+days+" day"+(days>1?"s":"");
+  if(h>=1) return "In "+h+" hr"+(h>1?"s":"");
+  const m=Math.max(1,Math.floor(diff/60000));
+  return "In "+m+" min";
+}
+function prettyDate(dateStr){
+  if(!dateStr) return "";
+  return new Date(dateStr).toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+}
+
+/* ---- Data ops ---- */
+async function loadMatchesFor(sportId){
+  state.loading=true; state.matches=[]; render();
+  const keys=await store.list("match:");
+  const results=[];
+  for(const k of keys){
+    const v=await store.get(k);
+    if(v){ try{ const m=JSON.parse(v); results.push(m); }catch(e){} }
+  }
+  results.sort((a,b)=>new Date(a.when)-new Date(b.when));
+  state.matches=results; state.loading=false; render();
+}
+async function postMatch(data){
+  const id="match:"+Date.now()+"_"+Math.random().toString(36).slice(2,6);
+  const match={ id, sport:state.sport.id, host:data.host, hostId:deviceId,
+    place:data.place, when:data.when, note:data.note, maxPlayers:data.maxPlayers,
+    players:[{id:deviceId,name:data.host}], created:Date.now() };
+  await store.set(id, JSON.stringify(match));
+  flash("Match posted — others can see it now");
+  state.view="sport"; await loadMatchesFor(state.sport.id);
+}
+async function joinMatch(match){
+  if(!state.name.trim()){ flash("Add your name in the top bar first"); return; }
+  const already=match.players.some(p=>p.id===deviceId);
+  let updated;
+  if(already){ updated={...match, players:match.players.filter(p=>p.id!==deviceId)}; }
+  else{
+    if(match.maxPlayers && match.players.length>=match.maxPlayers){ flash("This match is full"); return; }
+    updated={...match, players:[...match.players,{id:deviceId,name:state.name.trim()}]};
+  }
+  await store.set(match.id, JSON.stringify(updated));
+  flash(already?"You left the match":"You're in! See you there");
+  await loadMatchesFor(state.sport.id);
+}
+async function deleteMatch(match){
+  await store.del(match.id);
+  flash("Match removed");
+  await loadMatchesFor(state.sport.id);
+}
+
+/* ---- Views ---- */
+function render(){
+  if(state.view==="home") return renderHome();
+  if(state.view==="sport") return renderSport();
+  if(state.view==="create") return renderCreate();
+}
+
+function renderHome(){
+  app.innerHTML = `
+    <section class="hero">
+      <h1>Pick a sport.<br>Find a match to join.</h1>
+      <p>Choose a sport, see the matches people have posted near you — place and time included — and join with one tap. Or post your own and watch others join.</p>
+    </section>
+    <div class="grid">
+      ${SPORTS.map((sp,i)=>`
+        <button class="card" style="animation-delay:${i*25}ms" data-sport="${sp.id}">
+          <span class="emoji">${sp.emoji}</span>
+          <span class="name">${sp.name}</span>
+        </button>`).join("")}
+    </div>`;
+  app.querySelectorAll("[data-sport]").forEach(b=>b.onclick=()=>{
+    state.sport=SPORTS.find(s=>s.id===b.dataset.sport);
+    state.view="sport"; loadMatchesFor(state.sport.id);
+  });
+}
+
+function renderSport(){
+  const sp=state.sport;
+  const countText = state.loading ? "Loading matches…"
+    : state.matches.length===0 ? "No matches posted yet"
+    : state.matches.length+" match"+(state.matches.length>1?"es":"")+" across all sports";
+
+  let cards="";
+  if(!state.loading && state.matches.length===0){
+    cards = `<div class="empty"><div class="emoji">${sp.emoji}</div>
+      <p>No matches posted yet. Post one — set the place and time, and others can join right away.</p></div>`;
+  } else {
+    cards = `<div class="matchList">${state.matches.map(m=>matchCard(m)).join("")}</div>`;
+  }
+
+  app.innerHTML = `
+    <button class="back" id="back">← All sports</button>
+    <div class="sportHead">
+      <span class="emoji">${sp.emoji}</span>
+      <div style="flex:1">
+        <h2>${sp.name}</h2>
+        <p class="count">${countText}</p>
+      </div>
+      <button class="refresh" id="refresh" title="Refresh">↻</button>
+    </div>
+    <button class="postBtn" id="post">+ Post a match</button>
+    ${state.loading?'<div class="loadingRow">Loading…</div>':""}
+    ${cards}`;
+
+  document.getElementById("back").onclick=()=>{state.view="home"; render();};
+  document.getElementById("refresh").onclick=()=>loadMatchesFor(sp.id);
+  document.getElementById("post").onclick=()=>{
+    if(!state.name.trim()){ flash("Add your name in the top bar first"); return; }
+    state.view="create"; render();
+  };
+  app.querySelectorAll("[data-join]").forEach(b=>b.onclick=()=>{
+    const m=state.matches.find(x=>x.id===b.dataset.join); if(m) joinMatch(m);
+  });
+  app.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
+    const m=state.matches.find(x=>x.id===b.dataset.del); if(m) deleteMatch(m);
+  });
+}
+
+function matchCard(m){
+  const joined=m.players.some(p=>p.id===deviceId);
+  const isHost=m.hostId===deviceId;
+  const full=m.maxPlayers && m.players.length>=m.maxPlayers;
+  const past=new Date(m.when)<new Date();
+  const avatars=m.players.slice(0,5).map((p,i)=>
+    `<span class="miniAvatar" style="margin-left:${i===0?0:-8}px;z-index:${10-i}" title="${esc(p.name)}">${esc((p.name||"?").charAt(0).toUpperCase())}</span>`).join("");
+  const joinClass = joined?"joinBtn joined":(full?"joinBtn full":"joinBtn");
+  const joinLabel = joined?"✓ You're going — tap to leave":(full?"Match full":"Join this match");
+  const sp = SPORTS.find(s=>s.id===m.sport);
+  const sportLabel = sp ? `<span class="sportChip">${sp.emoji} ${esc(sp.name)}</span>` : "";
+  return `
+    <div class="matchCard ${past?"past":""}">
+      <div class="matchTop">
+        <span class="whenChip">${past?"Past":timeUntil(m.when)}</span>
+        ${sportLabel}
+        ${isHost?`<button class="deleteLink" data-del="${m.id}">Delete</button>`:""}
+      </div>
+      <div class="matchPlace">📍 ${esc(m.place)}</div>
+      <div class="matchWhen">🗓 ${prettyDate(m.when)}</div>
+      ${m.note?`<div class="matchNote">${esc(m.note)}</div>`:""}
+      <span class="hostBadge">Hosted by ${esc(m.host)}</span>
+      <div class="playersRow">
+        <div class="avatarStack">${avatars}</div>
+        <span class="playerCount">${m.players.length}${m.maxPlayers?" / "+m.maxPlayers:""} going</span>
+      </div>
+      <button class="${joinClass}" data-join="${m.id}" ${(!joined&&full)?"disabled":""}>${joinLabel}</button>
+      ${m.players.length?`<div class="goingNames">${m.players.map(p=>esc(p.name)).join(", ")}</div>`:""}
+    </div>`;
+}
+
+function renderCreate(){
+  const sp=state.sport;
+  app.innerHTML = `
+    <button class="back" id="back">← Back</button>
+    <div class="sportHead">
+      <span class="emoji">${sp.emoji}</span>
+      <div>
+        <h2>Post a ${sp.name} match</h2>
+        <p class="count">Set where and when — others join in one tap.</p>
+      </div>
+    </div>
+    <label class="fld">Where? *</label>
+    <input class="fld" id="place" placeholder="e.g. School court, Senayan Park">
+    <label class="fld">When? *</label>
+    <input class="fld" id="when" type="datetime-local">
+    <label class="fld">Players needed (optional)</label>
+    <input class="fld" id="max" type="number" min="2" placeholder="e.g. 10">
+    <label class="fld">Note (optional)</label>
+    <input class="fld" id="note" placeholder="e.g. Bring your own ball, casual game">
+    <div class="hostNote">Posting as <b>${esc(state.name||"Someone")}</b>. You'll be counted as going automatically.</div>
+    <button class="postBtn" id="submit" style="margin-top:6px">Post match</button>`;
+
+  document.getElementById("back").onclick=()=>{state.view="sport"; render();};
+  document.getElementById("submit").onclick=()=>{
+    const place=document.getElementById("place").value.trim();
+    const when=document.getElementById("when").value;
+    const max=document.getElementById("max").value;
+    const note=document.getElementById("note").value.trim();
+    if(!place||!when){ flash("Add a place and a time"); return; }
+    postMatch({ host:(state.name.trim()||"Someone"), place, when, note, maxPlayers:max?parseInt(max,10):null });
+  };
+}
+
+/* ---- Wire up ---- */
+document.getElementById("brand").onclick=()=>{state.view="home"; render();};
+const nameInput=document.getElementById("nameInput");
+nameInput.addEventListener("input", async (e)=>{
+  state.name=e.target.value;
+  await store.setLocal("name:"+deviceId, e.target.value);
+});
+
+(async function init(){
+  const saved=await store.getLocal("name:"+deviceId);
+  if(saved){ state.name=saved; nameInput.value=saved; }
+  render();
+  watchMatches();
+})();
+</script>
+</body>
+</html>
